@@ -18,3 +18,8 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def init_db():
+    # This function is called to initialize the database
+    # The actual initialization is handled by the startup event in main.py
+    pass

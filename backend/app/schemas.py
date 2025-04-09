@@ -2,9 +2,13 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime
 
+class CategoriesResponse(BaseModel):
+    categories: List[str]
+
 class UserBase(BaseModel):
-    email: EmailStr
     username: str
+    email: EmailStr
+    full_name: str
 
 class UserCreate(UserBase):
     password: str
@@ -43,7 +47,7 @@ class ProductBase(BaseModel):
     name: str
     description: str
     price: float
-    category: str
+    category_id: int
     stock: int
 
 class ProductCreate(ProductBase):
@@ -56,6 +60,7 @@ class Product(ProductBase):
     id: int
     image: Optional[str]
     created_at: datetime
+    category: Optional[Category] = None
 
     class Config:
         from_attributes = True
@@ -98,6 +103,9 @@ class OrderItem(OrderItemBase):
 class OrderBase(BaseModel):
     total_price: float
     status: str
+
+class OrderCreate(OrderBase):
+    items: List[OrderItemBase]
 
 class Order(OrderBase):
     id: int

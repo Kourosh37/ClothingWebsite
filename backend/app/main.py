@@ -19,11 +19,16 @@ from .notifications import manager
 from .payment import payment_manager
 import shutil
 import uuid
+import logging
+from pydantic import BaseModel
+from app.database import Base, engine
 
 # Load environment variables
 load_dotenv()
 
 # Initialize database
+from app.database import Base, engine
+Base.metadata.create_all(bind=engine)
 database.init_db()
 
 # Create uploads directory if it doesn't exist
@@ -80,10 +85,14 @@ async def custom_swagger_ui_html():
 
 @app.on_event("startup")
 async def startup():
-    # Create admin user
+    # Create admin user if it doesn't exist
     db = database.SessionLocal()
-    crud.create_admin_user(db)
-    db.close()
+    try:
+        crud.create_admin_user(db)
+    except Exception as e:
+        print(f"Error creating admin user: {str(e)}")
+    finally:
+        db.close()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -114,13 +123,23 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 @app.post("/api/auth/login", response_model=schemas.Token)
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     try:
+        print("Login attempt for user:", user.username)
+        print("User data:", user.dict())
         authenticated_user = crud.login_user(db, user)
+        print("User authenticated successfully:", authenticated_user.username)
         access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = auth.create_access_token(
             data={"sub": authenticated_user.username}, expires_delta=access_token_expires
         )
+        print("Access token created successfully")
         return {"access_token": access_token, "token_type": "bearer", "user": authenticated_user}
+    except HTTPException as e:
+        print("HTTP Exception in login:", str(e))
+        raise
     except Exception as e:
+        print("Unexpected error in login:", str(e))
+        import traceback
+        print("Traceback:", traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/auth/me", response_model=schemas.User)
@@ -153,7 +172,13 @@ def read_products(
         )
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error in read_products endpoint: {str(e)}")
+        return {"items": [], "total": 0}
+
+@app.get("/api/products/categories", response_model=schemas.CategoriesResponse)
+async def get_categories(db: Session = Depends(get_db)):
+    categories = crud.get_categories(db)
+    return {"categories": categories}
 
 @app.get("/api/products/{product_id}", response_model=schemas.Product)
 def read_product(product_id: int, db: Session = Depends(get_db)):
@@ -452,29 +477,22 @@ async def upload_image(
     finally:
         file.file.close()
 
-@app.get("/api/products/categories", response_model=List[str])
-def get_categories(db: Session = Depends(get_db)):
-    try:
-        categories = crud.get_categories(db)
-        return categories
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+@app.get("/api/test")
+def test_endpoint():
+    logger.info("Test endpoint called")
+    return {"message": "API is working!", "status": "success"}
 
 @app.get("/api/categories", response_model=schemas.CategoryList)
-def get_categories_with_details(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db)
-):
+def get_categories_list(db: Session = Depends(get_db)):
     try:
-        categories = crud.get_categories_with_details(db, skip=skip, limit=limit)
-        # Add full URL to image paths
-        for category in categories:
-            if category.image:
-                category.image = f"/uploads/{category.image}"
+        categories = db.query(models.Category).all()
         return {"items": categories, "total": len(categories)}
     except Exception as e:
-        print(f"Error in get_categories_with_details: {str(e)}")
+        logger.error(f"Error in get_categories_list: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Run the app

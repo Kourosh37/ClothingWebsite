@@ -7,13 +7,30 @@ const Home = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [apiStatus, setApiStatus] = useState('checking');
+
+  useEffect(() => {
+    const testApiConnection = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/api/test');
+        setApiStatus('connected');
+        console.log('API Test Response:', response.data);
+      } catch (error) {
+        setApiStatus('error');
+        console.error('API Connection Error:', error);
+      }
+    };
+
+    testApiConnection();
+  }, []);
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         setLoading(true);
         const response = await axios.get('http://localhost:8000/api/products/categories');
-        setCategories(response.data || []);
+        console.log('Categories Response:', response.data);
+        setCategories(response.data.categories || []);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching categories:', error);
@@ -27,6 +44,20 @@ const Home = () => {
 
   return (
     <div className="bg-gray-50">
+      {/* API Status */}
+      <div className="fixed top-4 right-4 bg-white p-4 rounded-lg shadow-lg">
+        <p className="text-sm">
+          API Status: 
+          <span className={`ml-2 font-bold ${
+            apiStatus === 'connected' ? 'text-green-500' : 
+            apiStatus === 'error' ? 'text-red-500' : 'text-yellow-500'
+          }`}>
+            {apiStatus === 'connected' ? 'Connected' : 
+             apiStatus === 'error' ? 'Error' : 'Checking...'}
+          </span>
+        </p>
+      </div>
+
       {/* Hero Section */}
       <div className="relative h-[600px] bg-gradient-to-r from-blue-900 to-indigo-900">
         <div className="absolute inset-0 bg-black opacity-40"></div>

@@ -97,11 +97,18 @@ const AdminPanel = () => {
   const handleCreateProduct = async (e) => {
     e.preventDefault();
     try {
+      // Find the category ID from the categories list
+      const selectedCategory = categories.find(cat => cat.name === newProduct.category);
+      if (!selectedCategory) {
+        toast.error('لطفا یک دسته‌بندی معتبر انتخاب کنید');
+        return;
+      }
+
       const productData = {
         name: newProduct.name,
         description: newProduct.description,
         price: parseFloat(newProduct.price),
-        category: newProduct.category,
+        category_id: selectedCategory.id,
         stock: parseInt(newProduct.stock),
         image: newProduct.image
       };
@@ -305,7 +312,7 @@ const AdminPanel = () => {
                   {product.price.toLocaleString()} تومان
                 </p>
                 <p className="text-gray-600 mb-2">موجودی: {product.stock}</p>
-                <p className="text-gray-600 mb-4">دسته‌بندی: {product.category}</p>
+                <p className="text-gray-600 mb-4">دسته‌بندی: {product.category?.name || 'بدون دسته‌بندی'}</p>
                 <div className="flex justify-end">
                   <button
                     onClick={() => handleDeleteProduct(product.id)}
@@ -344,35 +351,35 @@ const AdminPanel = () => {
       )}
 
       {activeTab === 'categories' && (
-        <div>
-          <h2 className="text-2xl font-bold mb-4 text-right">افزودن دسته‌بندی جدید</h2>
-          <form onSubmit={handleCreateCategory} className="mb-8">
-            <input
-              type="text"
-              placeholder="نام دسته‌بندی"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              className="border p-2 rounded text-right"
-              required
-            />
-            <button
-              type="submit"
-              className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
-            >
-              افزودن دسته‌بندی
-            </button>
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-2xl font-bold mb-6">مدیریت دسته‌بندی‌ها</h2>
+          <form onSubmit={handleCreateCategory} className="mb-6">
+            <div className="flex gap-4">
+              <input
+                type="text"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                placeholder="نام دسته‌بندی جدید"
+                className="flex-1 px-4 py-2 border rounded-lg"
+                required
+              />
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+              >
+                افزودن دسته‌بندی
+              </button>
+            </div>
           </form>
-
-          <h2 className="text-2xl font-bold mb-4 text-right">لیست دسته‌بندی‌ها</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {categories.map((category) => (
-              <div key={category.id} className="border rounded-lg p-4">
-                <h3 className="text-lg font-bold mb-2">{category.name}</h3>
+              <div key={category.id} className="bg-gray-50 p-4 rounded-lg flex justify-between items-center">
+                <span className="text-gray-800">{category.name}</span>
                 <button
                   onClick={() => handleDeleteCategory(category.name)}
-                  className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                  className="text-red-600 hover:text-red-800"
                 >
-                  حذف دسته‌بندی
+                  حذف
                 </button>
               </div>
             ))}

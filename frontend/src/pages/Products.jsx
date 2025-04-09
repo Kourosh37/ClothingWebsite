@@ -9,6 +9,7 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('همه');
+  const [categories, setCategories] = useState(['همه']);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -19,24 +20,30 @@ const Products = () => {
   }, [location.search]);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/products');
-        const products = response.data.items || [];
+        const [productsRes, categoriesRes] = await Promise.all([
+          axios.get('http://localhost:8000/api/products'),
+          axios.get('http://localhost:8000/api/products/categories')
+        ]);
+        
+        const products = productsRes.data.items || [];
         const productsWithFullUrls = products.map(product => ({
           ...product,
           image: product.image ? `http://localhost:8000${product.image}` : null
         }));
+        
         setProducts(productsWithFullUrls);
+        setCategories(['همه', ...categoriesRes.data.categories]);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching products:', error);
-        toast.error('خطا در دریافت محصولات');
+        console.error('Error fetching data:', error);
+        toast.error('خطا در دریافت اطلاعات');
         setLoading(false);
       }
     };
 
-    fetchProducts();
+    fetchData();
   }, []);
 
   const handleAddToCart = async (e, productId) => {
@@ -63,11 +70,9 @@ const Products = () => {
 
   const filteredProducts = Array.isArray(products) ? products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = category === 'همه' || product.category === category;
+    const matchesCategory = category === 'همه' || product.category.name === category;
     return matchesSearch && matchesCategory;
   }) : [];
-
-  const categories = ['همه', ...new Set(products.map((product) => product.category))];
 
   if (loading) {
     return (
@@ -120,7 +125,7 @@ const Products = () => {
               </div>
               <div className="p-6">
                 <h2 className="text-xl font-semibold mb-2 text-gray-800">{product.name}</h2>
-                <p className="text-gray-600 mb-2">{product.category}</p>
+                <p className="text-gray-600 mb-2">{product.category?.name || 'بدون دسته‌بندی'}</p>
                 <div className="flex justify-between items-center">
                   <p className="text-xl font-bold text-blue-600">
                     {product.price.toLocaleString()} تومان
