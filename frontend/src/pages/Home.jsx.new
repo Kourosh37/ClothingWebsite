@@ -1,0 +1,168 @@
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { toast } from 'react-toastify';
+
+const Home = () => {
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchFeaturedProducts = async () => {
+      try {
+        const response = await axios.get('/api/products/featured');
+        if (Array.isArray(response.data)) {
+          setFeaturedProducts(response.data);
+        } else {
+          setError('خطا در فرمت داده‌های دریافتی');
+        }
+      } catch (error) {
+        console.error('Error fetching featured products:', error);
+        setError('خطا در اتصال به سرور');
+        setFeaturedProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeaturedProducts();
+  }, []);
+
+  const categories = [
+    { name: 'مردانه', image: '/images/men-category.jpg' },
+    { name: 'زنانه', image: '/images/women-category.jpg' },
+    { name: 'بچه گانه', image: '/images/kids-category.jpg' },
+  ];
+
+  const renderEmptyCards = () => {
+    return Array.from({ length: 4 }).map((_, index) => (
+      <div
+        key={index}
+        className="bg-white rounded-xl shadow-lg overflow-hidden"
+      >
+        <div className="relative h-64 bg-gray-100 flex items-center justify-center">
+          <span className="text-gray-400">بدون محصول</span>
+        </div>
+        <div className="p-6">
+          <div className="h-6 bg-gray-100 rounded mb-2"></div>
+          <div className="h-4 bg-gray-100 rounded mb-4"></div>
+          <div className="flex justify-between items-center">
+            <div className="h-6 w-24 bg-gray-100 rounded"></div>
+            <div className="h-10 w-32 bg-gray-100 rounded"></div>
+          </div>
+        </div>
+      </div>
+    ));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-50">
+      {/* Hero Section */}
+      <div className="relative h-[600px] bg-gradient-to-r from-blue-900 to-indigo-900">
+        <div className="absolute inset-0 bg-black opacity-40"></div>
+        <div className="relative h-full flex items-center justify-center text-center">
+          <div className="max-w-3xl px-4">
+            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+              به فروشگاه آنلاین ما خوش آمدید
+            </h1>
+            <p className="text-xl text-gray-200 mb-8">
+              جدیدترین محصولات با بهترین قیمت‌ها
+            </p>
+            <Link
+              to="/products"
+              className="bg-white text-blue-900 px-8 py-3 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+              مشاهده محصولات
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Categories Section */}
+      <div className="container mx-auto px-4 py-20">
+        <h2 className="text-3xl font-bold text-center mb-16 text-gray-800">
+          دسته‌بندی محصولات
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {categories.map((category) => (
+            <Link
+              key={category.name}
+              to={`/products?category=${category.name}`}
+              className="relative h-80 rounded-xl overflow-hidden group shadow-lg hover:shadow-2xl transition-all duration-300"
+            >
+              <img
+                src={category.image}
+                alt={category.name}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end justify-center p-6">
+                <h3 className="text-2xl font-bold text-white">{category.name}</h3>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Featured Products Section */}
+      <div className="bg-white py-20">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-16 text-gray-800">
+            محصولات ویژه
+          </h2>
+          {error && (
+            <div className="text-center text-red-500 mb-8">{error}</div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {featuredProducts.length > 0 ? (
+              featuredProducts.map((product) => (
+                <Link
+                  key={product.id}
+                  to={`/products/${product.id}`}
+                  className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
+                >
+                  <div className="relative h-64 overflow-hidden">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                    />
+                    {product.is_featured && (
+                      <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                        ویژه
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold mb-2 text-gray-800">{product.name}</h3>
+                    <p className="text-gray-600 mb-2">{product.category}</p>
+                    <div className="flex justify-between items-center">
+                      <p className="text-xl font-bold text-blue-600">
+                        {product.price.toLocaleString()} تومان
+                      </p>
+                      <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        افزودن به سبد
+                      </button>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              renderEmptyCards()
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Home; 
