@@ -23,18 +23,38 @@ def get_users(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.User).offset(skip).limit(limit).all()
 
 def create_user(db: Session, user: schemas.UserCreate):
-    hashed_password = auth.get_password_hash(user.password)
-    db_user = models.User(
-        email=user.email,
-        username=user.username,
-        hashed_password=hashed_password,
-        full_name=user.full_name,
-        is_admin=False
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+    try:
+        # Check if username already exists
+        existing_user = get_user_by_username(db, username=user.username)
+        if existing_user:
+            raise HTTPException(status_code=400, detail="این نام کاربری قبلاً ثبت شده است")
+
+        # Check if email already exists
+        existing_email = get_user_by_email(db, email=user.email)
+        if existing_email:
+            raise HTTPException(status_code=400, detail="این ایمیل قبلاً ثبت شده است")
+
+        hashed_password = auth.get_password_hash(user.password)
+        db_user = models.User(
+            email=user.email,
+            username=user.username,
+            hashed_password=hashed_password,
+            is_admin=False
+        )
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        if "UNIQUE constraint failed: users.username" in str(e):
+            raise HTTPException(status_code=400, detail="این نام کاربری قبلاً ثبت شده است")
+        elif "UNIQUE constraint failed: users.email" in str(e):
+            raise HTTPException(status_code=400, detail="این ایمیل قبلاً ثبت شده است")
+        else:
+            raise HTTPException(status_code=500, detail="خطا در ثبت‌نام")
 
 def create_admin_user(db: Session):
     # Check if admin user already exists
@@ -43,13 +63,20 @@ def create_admin_user(db: Session):
         # Create admin user
         admin = models.User(
             username="admin",
+            email="admin@example.com",
             hashed_password=auth.get_password_hash("admin123"),
             is_admin=True,
             is_active=True
         )
         db.add(admin)
-        db.commit()
-        db.refresh(admin)
+    else:
+        # Update existing admin user if fields are missing
+        if not admin.email:
+            admin.email = "admin@example.com"
+        if not admin.is_active:
+            admin.is_active = True
+    db.commit()
+    db.refresh(admin)
     return admin
 
 def get_product(db: Session, product_id: int):

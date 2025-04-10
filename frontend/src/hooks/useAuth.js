@@ -42,7 +42,6 @@ const useAuthStore = create((set) => ({
       const response = await api.post('/api/auth/register', {
         email: userData.email,
         username: userData.username,
-        name: userData.name,
         password: userData.password
       });
       const { access_token, user } = response.data;
@@ -52,7 +51,30 @@ const useAuthStore = create((set) => ({
       return true;
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error(error.response?.data?.detail || 'خطا در ثبت‌نام');
+      console.log('Error response:', error.response?.data);
+      console.log('Error status:', error.response?.status);
+      console.log('Error headers:', error.response?.headers);
+      
+      if (error.response?.data?.detail) {
+        // Handle array of error messages
+        if (Array.isArray(error.response.data.detail)) {
+          error.response.data.detail.forEach(message => {
+            toast.error(`خطای اعتبارسنجی: ${message}`);
+          });
+        } else {
+          toast.error(`خطای سرور: ${error.response.data.detail}`);
+        }
+      } else if (error.response?.data?.errors) {
+        // Show validation errors
+        Object.entries(error.response.data.errors).forEach(([field, messages]) => {
+          messages.forEach(message => toast.error(`${field}: ${message}`));
+        });
+      } else if (error.response?.data) {
+        // If the error response has data but not in the expected format
+        toast.error(`خطای اعتبارسنجی: ${JSON.stringify(error.response.data)}`);
+      } else {
+        toast.error('خطا در ثبت‌نام: لطفاً ورودی‌های خود را بررسی کنید');
+      }
       return false;
     }
   },

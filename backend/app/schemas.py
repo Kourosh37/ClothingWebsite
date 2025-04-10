@@ -8,7 +8,6 @@ class CategoriesResponse(BaseModel):
 class UserBase(BaseModel):
     username: str
     email: EmailStr
-    full_name: str
 
 class UserCreate(UserBase):
     password: str
