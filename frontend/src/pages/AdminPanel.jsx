@@ -1,5 +1,6 @@
+import '../index.css';
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import useAuthStore from '../hooks/useAuth';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -18,6 +19,11 @@ const AdminPanel = () => {
     image: null
   });
   const [newCategory, setNewCategory] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
   const { user, token } = useAuthStore();
 
@@ -59,9 +65,12 @@ const AdminPanel = () => {
       setProducts(processedProducts);
       setUsers(usersRes.data || []);
       setCategories(categoriesRes.data || []);
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('خطا در دریافت اطلاعات');
+      setError('خطا در دریافت اطلاعات');
+      setLoading(false);
     }
   };
 
@@ -142,17 +151,19 @@ const AdminPanel = () => {
   };
 
   const handleDeleteProduct = async (productId) => {
-    try {
-      await axios.delete(`http://localhost:8000/api/admin/products/${productId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      toast.success('محصول با موفقیت حذف شد');
-      fetchData();
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      toast.error('خطا در حذف محصول');
+    if (window.confirm('آیا از حذف این محصول اطمینان دارید؟')) {
+      try {
+        await axios.delete(`http://localhost:8000/api/admin/products/${productId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        toast.success('محصول با موفقیت حذف شد');
+        fetchData();
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        toast.error('خطا در حذف محصول');
+      }
     }
   };
 
@@ -206,186 +217,203 @@ const AdminPanel = () => {
     }
   };
 
+  const fetchProducts = async () => {
+    try {
+      const response = await axios.get(`/api/admin/products?page=${currentPage}&search=${searchTerm}`);
+      setProducts(response.data.products);
+      setTotalPages(response.data.totalPages);
+      setLoading(false);
+    } catch (err) {
+      setError('خطا در دریافت محصولات');
+      setLoading(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-xl text-gray-600">در حال بارگذاری...</div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-xl text-red-600">{error}</div>
+    </div>
+  );
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-right">پنل مدیریت</h1>
-      
-      <div className="flex space-x-4 mb-8 justify-end">
-        <button
-          className={`px-4 py-2 rounded ${activeTab === 'products' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-          onClick={() => setActiveTab('products')}
+    <div className="container mx-auto px-4 py-8 pt-24">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">مدیریت محصولات</h1>
+        <Link
+          to="/admin/products/new"
+          className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
         >
-          مدیریت محصولات
-        </button>
-        <button
-          className={`px-4 py-2 rounded ${activeTab === 'users' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-          onClick={() => setActiveTab('users')}
-        >
-          مدیریت کاربران
-        </button>
-        <button
-          className={`px-4 py-2 rounded ${activeTab === 'categories' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-          onClick={() => setActiveTab('categories')}
-        >
-          مدیریت دسته‌بندی‌ها
-        </button>
+          افزودن محصول جدید
+        </Link>
       </div>
 
-      {activeTab === 'products' && (
-        <div>
-          <h2 className="text-2xl font-bold mb-4 text-right">افزودن محصول جدید</h2>
-          <form onSubmit={handleCreateProduct} className="mb-8">
-            <div className="grid grid-cols-2 gap-4">
-              <input
-                type="text"
-                placeholder="نام محصول"
-                value={newProduct.name}
-                onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                className="border p-2 rounded text-right"
-                required
-              />
-              <input
-                type="text"
-                placeholder="توضیحات"
-                value={newProduct.description}
-                onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                className="border p-2 rounded text-right"
-                required
-              />
-              <input
-                type="number"
-                placeholder="قیمت"
-                value={newProduct.price}
-                onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                className="border p-2 rounded text-right"
-                required
-              />
-              <input
-                type="number"
-                placeholder="موجودی"
-                value={newProduct.stock}
-                onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
-                className="border p-2 rounded text-right"
-                required
-              />
-              <select
-                value={newProduct.category}
-                onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                className="border p-2 rounded text-right"
-                required
-              >
-                <option value="">انتخاب دسته‌بندی</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.name}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="border p-2 rounded text-right"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="max-w-md">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="جستجوی محصول..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            <svg
+              className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              افزودن محصول
-            </button>
-          </form>
-
-          <h2 className="text-2xl font-bold mb-4 text-right">لیست محصولات</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {products.map((product) => (
-              <div key={product.id} className="border rounded-lg p-4">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-48 object-cover rounded-lg mb-4"
-                />
-                <h3 className="text-lg font-bold mb-2">{product.name}</h3>
-                <p className="text-gray-600 mb-2">{product.description}</p>
-                <p className="text-blue-600 font-bold mb-2">
-                  {product.price.toLocaleString()} تومان
-                </p>
-                <p className="text-gray-600 mb-2">موجودی: {product.stock}</p>
-                <p className="text-gray-600 mb-4">دسته‌بندی: {product.category?.name || 'بدون دسته‌بندی'}</p>
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => handleDeleteProduct(product.id)}
-                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-                  >
-                    حذف محصول
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'users' && (
-        <div>
-          <h2 className="text-2xl font-bold mb-4 text-right">لیست کاربران</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {users.map((user) => (
-              <div key={user.id} className="border rounded-lg p-4">
-                <h3 className="text-lg font-bold mb-2">{user.username}</h3>
-                <p className="text-gray-600 mb-2">{user.email}</p>
-                <p className="text-gray-600 mb-4">
-                  نقش: {user.is_admin ? 'مدیر' : 'کاربر عادی'}
-                </p>
-                <button
-                  onClick={() => handleDeleteUser(user.id)}
-                  className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-                >
-                  حذف کاربر
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'categories' && (
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold mb-6">مدیریت دسته‌بندی‌ها</h2>
-          <form onSubmit={handleCreateCategory} className="mb-6">
-            <div className="flex gap-4">
-              <input
-                type="text"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="نام دسته‌بندی جدید"
-                className="flex-1 px-4 py-2 border rounded-lg"
-                required
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Products Table */}
+      <div className="bg-white shadow-md rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  تصویر
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  نام محصول
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  قیمت
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  موجودی
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  دسته‌بندی
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  عملیات
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {products.map((product) => (
+                <tr key={product._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <img
+                      src={product.images[0]}
+                      alt={product.name}
+                      className="h-16 w-16 object-cover rounded"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {product.price.toLocaleString()} تومان
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      product.stock > 10
+                        ? 'bg-green-100 text-green-800'
+                        : product.stock > 0
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {product.stock}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{product.category}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-3 space-x-reverse">
+                    <Link
+                      to={`/admin/products/${product._id}/edit`}
+                      className="text-indigo-600 hover:text-indigo-900"
+                    >
+                      ویرایش
+                    </Link>
+                    <button
+                      onClick={() => handleDeleteProduct(product._id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      حذف
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div className="flex-1 flex justify-between sm:hidden">
               <button
-                type="submit"
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                  currentPage === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
               >
-                افزودن دسته‌بندی
+                قبلی
+              </button>
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                  currentPage === totalPages
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                بعدی
               </button>
             </div>
-          </form>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {categories.map((category) => (
-              <div key={category.id} className="bg-gray-50 p-4 rounded-lg flex justify-between items-center">
-                <span className="text-gray-800">{category.name}</span>
-                <button
-                  onClick={() => handleDeleteCategory(category.name)}
-                  className="text-red-600 hover:text-red-800"
-                >
-                  حذف
-                </button>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  نمایش صفحه <span className="font-medium">{currentPage}</span> از{' '}
+                  <span className="font-medium">{totalPages}</span>
+                </p>
               </div>
-            ))}
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  {[...Array(totalPages)].map((_, index) => (
+                    <button
+                      key={index + 1}
+                      onClick={() => setCurrentPage(index + 1)}
+                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                        currentPage === index + 1
+                          ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

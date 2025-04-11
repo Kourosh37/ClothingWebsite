@@ -1,103 +1,70 @@
-import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
-import { toast } from 'react-toastify';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Autoplay } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/navigation';
+import { FaShoppingCart, FaTruck, FaShieldAlt, FaHeadset } from 'react-icons/fa';
+import { useEffect, useState } from 'react';
+import axios from '../config/axios';
 
 const Home = () => {
-  const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState([]);
-  const [allProducts, setAllProducts] = useState([]);
-  const [categoryProducts, setCategoryProducts] = useState({});
-
-  const getCategoryImage = (categoryName) => {
-    const categoryImages = {
-      'مردانه': '/images/men-category.jpg',
-      'زنانه': '/images/women-category.jpg',
-      'بچه گانه': '/images/kids-category.jpg',
-    };
-    return categoryImages[categoryName] || '/images/default-category.jpg';
-  };
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [newArrivals, setNewArrivals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchProducts = async () => {
       try {
         setLoading(true);
-        // Fetch categories
-        const categoriesResponse = await axios.get('http://localhost:8000/api/products/categories');
-        const categoriesList = categoriesResponse.data.categories || [];
-        console.log('Categories List:', categoriesList);
-        setCategories(categoriesList);
+        const [featuredResponse, newArrivalsResponse] = await Promise.all([
+          axios.get('/api/products/featured'),
+          axios.get('/api/products/new-arrivals')
+        ]);
 
-        // Fetch all products
-        const allProductsResponse = await axios.get('http://localhost:8000/api/products');
-        const products = allProductsResponse.data.items || [];
-        console.log('All Products Details:', products.map(p => {
-          console.log('Product:', p);
-          console.log('Product Image:', p.image);
-          console.log('Full Image Path:', p.image ? `http://localhost:8000${p.image}` : null);
-          return {
-            id: p.id,
-            name: p.name,
-            category_id: p.category_id,
-            image: p.image,
-            imageType: typeof p.image,
-            fullImagePath: p.image ? `http://localhost:8000${p.image}` : null,
-            productDetails: JSON.stringify(p, null, 2),
-            imageUrl: p.image ? `http://localhost:8000${p.image}` : null
-          };
-        }));
-        setAllProducts(products);
-
-        // Group products by category
-        const productsByCategory = {};
-        categoriesList.forEach(category => {
-          const categoryProducts = products.filter(product => {
-            // Check if product has category_id field
-            if (!product.category_id) {
-              console.log(`Product ${product.id} has no category_id`);
-              return false;
-            }
-            // Log the comparison
-            console.log(`Comparing product category_id: ${product.category_id} with category name: ${category}`);
-            return product.category_id === categoriesList.indexOf(category) + 1;
-          });
-          console.log(`Products for category ${category}:`, categoryProducts);
-          productsByCategory[category] = categoryProducts;
-        });
-
-        console.log('Products by category:', productsByCategory);
-        setCategoryProducts(productsByCategory);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        toast.error('خطا در دریافت اطلاعات');
+        setFeaturedProducts(featuredResponse.data || []);
+        setNewArrivals(newArrivalsResponse.data || []);
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        setError('خطا در دریافت محصولات');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchProducts();
   }, []);
 
+  if (loading) return <div className="flex justify-center items-center min-h-screen">در حال بارگذاری...</div>;
+  if (error) return <div className="text-red-500 text-center p-4">{error}</div>;
+
   return (
-    <div className="bg-gray-50">
-      {/* Hero Section */}
-      <div className="relative h-[600px] bg-gradient-to-r from-blue-900 to-indigo-900">
-        <div className="absolute inset-0 bg-black opacity-40"></div>
-        <div className="relative h-full flex items-center justify-center text-center">
-          <div className="max-w-3xl px-4">
-            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
-              به فروشگاه آنلاین ما خوش آمدید
+    <div className="pt-16">
+      {/* Hero Section with Dynamic Background */}
+      <div className="relative bg-gradient-to-r from-blue-500 to-purple-600 text-white overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 mix-blend-multiply"></div>
+          <div className="absolute inset-0 bg-[url('/images/pattern.svg')] opacity-20"></div>
+        </div>
+        <div className="relative py-24 px-4">
+          <div className="container mx-auto text-center">
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-fade-in">
+              فروشگاه لباس آنلاین
             </h1>
-            <p className="text-xl text-gray-200 mb-8">
-              جدیدترین محصولات با بهترین قیمت‌ها
-            </p>
+            <p className="text-xl md:text-2xl mb-8 animate-slide-up">بهترین کیفیت، مناسب‌ترین قیمت</p>
+            <div className="flex flex-wrap justify-center gap-4 mb-12">
+              <div className="bg-white/20 backdrop-blur-md rounded-lg p-4 text-center">
+                <span className="block text-3xl font-bold">۱۰۰۰+</span>
+                <span className="text-sm">محصول متنوع</span>
+              </div>
+              <div className="bg-white/20 backdrop-blur-md rounded-lg p-4 text-center">
+                <span className="block text-3xl font-bold">۲۴/۷</span>
+                <span className="text-sm">پشتیبانی آنلاین</span>
+              </div>
+              <div className="bg-white/20 backdrop-blur-md rounded-lg p-4 text-center">
+                <span className="block text-3xl font-bold">۳ روزه</span>
+                <span className="text-sm">ارسال سریع</span>
+              </div>
+            </div>
             <Link
               to="/products"
-              className="bg-white text-blue-900 px-8 py-3 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              className="inline-block bg-white text-indigo-600 px-8 py-4 rounded-full font-medium hover:bg-gray-100 transition-all transform hover:scale-105 shadow-lg"
             >
               مشاهده محصولات
             </Link>
@@ -105,150 +72,70 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Categories Section */}
-      <div className="container mx-auto px-4 py-20" dir="rtl">
-        <h2 className="text-3xl font-bold text-center mb-16 text-gray-800">
-          دسته‌بندی محصولات
-        </h2>
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      {/* Special Offers Slider */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-4">پیشنهادات ویژه</h2>
+          <p className="text-gray-600 text-center mb-12">تخفیف‌های باورنکردنی، فقط برای شما</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* دو کارت مشابه دیگر */}
           </div>
-        ) : (
-          <div className="relative">
-            <Swiper
-              modules={[Navigation, Autoplay]}
-              spaceBetween={20}
-              slidesPerView={1}
-              navigation
-              dir="rtl"
-              autoplay={{
-                delay: 3000,
-                disableOnInteraction: false,
-              }}
-              breakpoints={{
-                640: {
-                  slidesPerView: 2,
-                },
-                768: {
-                  slidesPerView: 3,
-                },
-                1024: {
-                  slidesPerView: 4,
-                },
-              }}
-              className="py-4"
-            >
-              {categories.map((categoryName, index) => {
-                const products = categoryProducts[categoryName] || [];
-                return (
-                  <SwiperSlide key={index}>
-                    <Link
-                      to={`/products?category=${encodeURIComponent(categoryName)}`}
-                      className="block"
-                    >
-                      <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300">
-                        <div className="relative h-80 overflow-hidden">
-                          {products.length > 0 ? (
-                            <Swiper
-                              modules={[Navigation, Autoplay]}
-                              slidesPerView={1}
-                              className="h-full w-full"
-                              loop={true}
-                              autoplay={{
-                                delay: 3000,
-                                disableOnInteraction: false,
-                              }}
-                            >
-                              {products.map((product) => (
-                                <SwiperSlide key={product.id}>
-                                  <img
-                                    src={`http://localhost:8000${product.image}`}
-                                    alt={product.name}
-                                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                                    onError={(e) => {
-                                      console.error('Error loading product image:', e.target.src);
-                                    }}
-                                    onLoad={() => {
-                                      console.log('Product image loaded successfully:', product.image);
-                                    }}
-                                  />
-                                </SwiperSlide>
-                              ))}
-                            </Swiper>
-                          ) : (
-                            <img
-                              src={getCategoryImage(categoryName)}
-                              alt={categoryName}
-                              className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                              onError={(e) => {
-                                console.error('Error loading category image:', e.target.src);
-                              }}
-                            />
-                          )}
-                        </div>
-                        <div className="p-6 bg-white">
-                          <h3 className="text-2xl font-bold text-gray-800 mb-2">{categoryName}</h3>
-                          <p className="text-blue-600 text-lg">
-                            {products.length} محصول
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-                  </SwiperSlide>
-                );
-              })}
-            </Swiper>
-          </div>
-        )}
-      </div>
+        </div>
+      </section>
 
-      {/* Latest Products Section */}
-      <div className="container mx-auto px-4 py-20" dir="rtl">
-        <h2 className="text-3xl font-bold text-center mb-16 text-gray-800">
-          جدیدترین محصولات
-        </h2>
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      {/* Categories Section with Hover Effects */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-4">دسته‌بندی محصولات</h2>
+          <p className="text-gray-600 text-center mb-12">محصولات متنوع برای سلیقه‌های مختلف</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* سه کارت مشابه دیگر برای زنانه، بچگانه و اکسسوری */}
           </div>
-        ) : (
-          <div className="relative">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {allProducts
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                .slice(0, 4)
-                .map((product) => (
-                  <div key={product.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300">
-                    <Link to={`/products/${product.id}`}>
-                      <div className="relative h-64 overflow-hidden">
-                        <img
-                          src={product.image ? `http://localhost:8000${product.image}` : ''}
-                          alt={product.name}
-                          className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                          onError={(e) => {
-                            console.error('Error loading image:', e.target.src);
-                          }}
-                          onLoad={() => {
-                            console.log('Image loaded successfully:', product.image);
-                          }}
-                        />
-                      </div>
-                      <div className="p-6">
-                        <h2 className="text-xl font-semibold mb-2 text-gray-800">{product.name}</h2>
-                        <div className="flex justify-between items-center">
-                          <p className="text-xl font-bold text-blue-600">
-                            {product.price.toLocaleString()} تومان
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
+        </div>
+      </section>
+
+      {/* Latest Products with Animation */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-4">جدیدترین محصولات</h2>
+          <p className="text-gray-600 text-center mb-12">تازه‌ترین محصولات اضافه شده به فروشگاه</p>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {newArrivals.map((product) => (
+              <article key={product._id} className="bg-white rounded-2xl shadow-lg overflow-hidden transform hover:scale-105 transition-all">
+                <div className="relative pb-[100%]">
+                  <img 
+                    src={product.images[0]} 
+                    alt={product.name}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  {product.discount > 0 && (
+                    <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm">
+                      ٪{product.discount} تخفیف
+                    </div>
+                  )}
+                </div>
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold mb-2">{product.name}</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <p className="text-gray-600">{product.price.toLocaleString()} تومان</p>
+                    {product.discount > 0 && (
+                      <p className="text-red-500 line-through text-sm">
+                        {(product.price * (1 + product.discount/100)).toLocaleString()} تومان
+                      </p>
+                    )}
                   </div>
-                ))}
-            </div>
+                  <Link 
+                    to={`/products/${product._id}`}
+                    className="block w-full text-center bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    مشاهده محصول
+                  </Link>
+                </div>
+              </article>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      </section>
     </div>
   );
 };

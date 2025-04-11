@@ -1,104 +1,81 @@
 import { create } from 'zustand';
-import axios from 'axios';
+import axios from '../config/axios';
 import { toast } from 'react-toastify';
 
-// Create axios instance with custom config
-const api = axios.create({
-  baseURL: 'http://localhost:8000',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add a request interceptor
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
 const useAuthStore = create((set) => ({
-  user: null,
+  user: JSON.parse(localStorage.getItem('user')) || null,
   token: localStorage.getItem('token'),
-  setUser: (user) => set({ user }),
+  setUser: (user) => {
+    const userData = {
+      ...user,
+      isAdmin: user.role === 'admin' || user.is_admin === true
+    };
+    localStorage.setItem('user', JSON.stringify(userData));
+    set({ user: userData });
+  },
   setToken: (token) => {
     localStorage.setItem('token', token);
     set({ token });
   },
   logout: () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     set({ user: null, token: null });
+    toast.info('با موفقیت خارج شدید', {
+      icon: '👋'
+    });
   },
   register: async (userData) => {
     try {
-      console.log('Attempting registration with:', userData);
-      const response = await api.post('/api/auth/register', {
-        email: userData.email,
-        username: userData.username,
-        password: userData.password
-      });
+      const response = await axios.post('/api/auth/register', userData);
       const { access_token, user } = response.data;
-      useAuthStore.getState().setToken(access_token);
-      useAuthStore.getState().setUser(user);
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('user', JSON.stringify(user));
+      set({ token: access_token, user });
       toast.success('ثبت‌نام با موفقیت انجام شد');
-      return true;
+      return { success: true, user, token: access_token };
     } catch (error) {
       console.error('Registration error:', error);
-      console.log('Error response:', error.response?.data);
-      console.log('Error status:', error.response?.status);
-      console.log('Error headers:', error.response?.headers);
-      
-      if (error.response?.data?.detail) {
-        // Handle array of error messages
-        if (Array.isArray(error.response.data.detail)) {
-          error.response.data.detail.forEach(message => {
-            toast.error(`خطای اعتبارسنجی: ${message}`);
-          });
-        } else {
-          toast.error(`خطای سرور: ${error.response.data.detail}`);
-        }
-      } else if (error.response?.data?.errors) {
-        // Show validation errors
-        Object.entries(error.response.data.errors).forEach(([field, messages]) => {
-          messages.forEach(message => toast.error(`${field}: ${message}`));
-        });
-      } else if (error.response?.data) {
-        // If the error response has data but not in the expected format
-        toast.error(`خطای اعتبارسنجی: ${JSON.stringify(error.response.data)}`);
-      } else {
-        toast.error('خطا در ثبت‌نام: لطفاً ورودی‌های خود را بررسی کنید');
-      }
-      return false;
+      toast.error(error.response?.data?.detail || 'خطا در ثبت‌نام');
+      return { success: false, error };
     }
   },
-  login: async (credentials) => {
+  login: async (username, password) => {
     try {
-      const response = await api.post('/api/auth/login', credentials);
+      const response = await axios.post('/api/auth/login', {
+        username,
+        password
+      });
+      
       const { access_token, user } = response.data;
-      useAuthStore.getState().setToken(access_token);
-      useAuthStore.getState().setUser(user);
-      toast.success('ورود با موفقیت انجام شد');
-      return true;
+      const userData = {
+        ...user,
+        isAdmin: user.role === 'admin' || user.is_admin === true
+      };
+      
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      set({ token: access_token, user: userData });
+      
+      toast.success('خوش آمدید 👋');
+      return { success: true, user: userData, token: access_token };
     } catch (error) {
-      console.error('Login error:', error);
-      toast.error(error.response?.data?.detail || 'خطا در ورود');
-      return false;
+      toast.error('نام کاربری یا رمز عبور اشتباه است');
+      throw error;
     }
   },
   fetchUser: async () => {
     try {
-      const response = await api.get('/api/auth/me');
-      set({ user: response.data });
+      const response = await axios.get('/api/auth/me');
+      const user = response.data;
+      localStorage.setItem('user', JSON.stringify(user));
+      set({ user });
       return true;
     } catch (error) {
-      console.error('Fetch user error:', error);
+      console.error('Error fetching user:', error);
+      if (error.response?.status === 401) {
+        useAuthStore.getState().logout();
+      }
       return false;
     }
   },

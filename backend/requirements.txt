@@ -1,16 +1,27 @@
-fastapi
-uvicorn
-sqlalchemy
-pydantic
-python-jose[cryptography]
-passlib[bcrypt]
-python-dotenv
-pytest
-httpx
-pytest-asyncio
-pytest-cov
-python-multipart
-email-validator
-python-socketio
-aiohttp
-stripe
+﻿# FastAPI و وابستگی‌های اصلی
+fastapi==0.115.12
+uvicorn==0.34.0
+python-multipart==0.0.6
+pydantic==2.11.3
+pydantic[email]==2.11.3
+starlette==0.46.1
+pydantic-settings==2.8.1
+
+# امنیت و احراز هویت
+python-jose[cryptography]==3.4.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.1.0
+cachetools==5.3.0
+redis==5.0.1
+
+# مدیریت فایل و تصاویر
+Pillow==11.1.0
+python-magic==0.4.27
+
+# ابزارهای کمکی
+aiofiles==23.2.1
+python-slugify==8.0.1
+email-validator==2.2.0
+
+# لاگینگ
+loguru==0.7.2

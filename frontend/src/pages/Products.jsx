@@ -1,149 +1,185 @@
+import '../index.css';
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 const Products = () => {
-  const location = useLocation();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [category, setCategory] = useState('همه');
-  const [categories, setCategories] = useState(['همه']);
+  const [error, setError] = useState(null);
+  const [filters, setFilters] = useState({
+    category: '',
+    minPrice: '',
+    maxPrice: '',
+    sort: 'newest'
+  });
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const categoryParam = params.get('category');
-    if (categoryParam) {
-      setCategory(decodeURIComponent(categoryParam));
-    }
-  }, [location.search]);
+    fetchProducts();
+  }, [filters]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [productsRes, categoriesRes] = await Promise.all([
-          axios.get('http://localhost:8000/api/products'),
-          axios.get('http://localhost:8000/api/products/categories')
-        ]);
-        
-        const products = productsRes.data.items || [];
-        const productsWithFullUrls = products.map(product => ({
-          ...product,
-          image: product.image ? `http://localhost:8000${product.image}` : null
-        }));
-        
-        setProducts(productsWithFullUrls);
-        setCategories(['همه', ...categoriesRes.data.categories]);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        toast.error('خطا در دریافت اطلاعات');
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  const handleAddToCart = async (e, productId) => {
-    e.preventDefault();
+  const fetchProducts = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('لطفا ابتدا وارد حساب کاربری خود شوید');
-        return;
-      }
+      setLoading(true);
+      const queryParams = new URLSearchParams();
+      if (filters.category) queryParams.append('category', filters.category);
+      if (filters.minPrice) queryParams.append('minPrice', filters.minPrice);
+      if (filters.maxPrice) queryParams.append('maxPrice', filters.maxPrice);
+      if (filters.sort) queryParams.append('sort', filters.sort);
 
-      await axios.post(
-        'http://localhost:8000/api/cart/add',
-        { product_id: productId, quantity: 1 },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      toast.success('محصول با موفقیت به سبد خرید اضافه شد');
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      toast.error('خطا در افزودن به سبد خرید');
+      const response = await axios.get(`/api/products?${queryParams.toString()}`);
+      setProducts(response.data.products || []);
+      setLoading(false);
+    } catch (err) {
+      setError('خطا در دریافت محصولات');
+      setLoading(false);
+      console.error('Error fetching products:', err);
     }
   };
 
-  const filteredProducts = Array.isArray(products) ? products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = category === 'همه' || product.category.name === category;
-    return matchesSearch && matchesCategory;
-  }) : [];
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
+  const handleAddToCart = async (productId) => {
+    try {
+      await axios.post('/api/cart/add/', { product_id: productId, quantity: 1 });
+      toast.success('محصول به سبد خرید اضافه شد');
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error('خطا در اضافه کردن به سبد خرید');
+    }
+  };
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-xl text-gray-600">در حال بارگذاری...</div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-xl text-red-600">{error}</div>
+    </div>
+  );
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="mb-12">
-        <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">محصولات ما</h1>
-        <div className="flex flex-col md:flex-row gap-6 max-w-3xl mx-auto">
-          <div className="flex-1">
+    <div className="container mx-auto px-4 py-8 pt-24">
+      <h1 className="text-3xl font-bold text-center mb-8">محصولات</h1>
+      
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-lg shadow mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+              دسته‌بندی
+            </label>
+            <select
+              id="category"
+              name="category"
+              value={filters.category}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">همه دسته‌ها</option>
+              <option value="men">مردانه</option>
+              <option value="women">زنانه</option>
+              <option value="kids">بچگانه</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="minPrice" className="block text-sm font-medium text-gray-700 mb-2">
+              حداقل قیمت
+            </label>
             <input
-              type="text"
-              placeholder="جستجوی محصولات..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              type="number"
+              id="minPrice"
+              name="minPrice"
+              value={filters.minPrice}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="تومان"
             />
           </div>
-          <div className="w-full md:w-64">
+
+          <div>
+            <label htmlFor="maxPrice" className="block text-sm font-medium text-gray-700 mb-2">
+              حداکثر قیمت
+            </label>
+            <input
+              type="number"
+              id="maxPrice"
+              name="maxPrice"
+              value={filters.maxPrice}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="تومان"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="sort" className="block text-sm font-medium text-gray-700 mb-2">
+              مرتب‌سازی
+            </label>
             <select
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              id="sort"
+              name="sort"
+              value={filters.sort}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
+              <option value="newest">جدیدترین</option>
+              <option value="price_low">ارزان‌ترین</option>
+              <option value="price_high">گران‌ترین</option>
+              <option value="popular">محبوب‌ترین</option>
             </select>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {filteredProducts.map((product) => (
-          <div key={product.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300">
-            <Link to={`/products/${product.id}`}>
-              <div className="relative h-64 overflow-hidden">
+      {/* Products Grid */}
+      {products.length === 0 ? (
+        <div className="text-center text-gray-500 py-8">
+          محصولی یافت نشد
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {products.map((product) => (
+            <Link
+              key={product._id}
+              to={`/product/${product._id}`}
+              className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
+            >
+              <div className="aspect-w-1 aspect-h-1">
                 <img
-                  src={product.image}
+                  src={product.images[0]}
                   alt={product.name}
-                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                  className="w-full h-full object-cover"
                 />
               </div>
-              <div className="p-6">
-                <h2 className="text-xl font-semibold mb-2 text-gray-800">{product.name}</h2>
-                <p className="text-gray-600 mb-2">{product.category?.name || 'بدون دسته‌بندی'}</p>
+              <div className="p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{product.name}</h3>
                 <div className="flex justify-between items-center">
-                  <p className="text-xl font-bold text-blue-600">
+                  <span className="text-gray-900 font-medium">
                     {product.price.toLocaleString()} تومان
-                  </p>
+                  </span>
+                  {product.stock > 0 ? (
+                    <span className="text-green-600 text-sm">موجود</span>
+                  ) : (
+                    <span className="text-red-600 text-sm">ناموجود</span>
+                  )}
                 </div>
               </div>
             </Link>
-            <div className="px-6 pb-6">
-              <button
-                onClick={(e) => handleAddToCart(e, product.id)}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-300"
-              >
-                افزودن به سبد خرید
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
